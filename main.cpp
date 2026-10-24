@@ -5,6 +5,9 @@
 
 class LTexture {
 public:
+
+	static constexpr float kOriginalSize = -1.f;
+
 	LTexture();
 
 	~LTexture();
@@ -13,7 +16,7 @@ public:
 
 	void destroy();
 
-	void render(float x, float y);
+	void render(float x, float y, SDL_FRect* clip = nullptr, float width = kOriginalSize, float height = kOriginalSize);
 
 	int getWidth();
 	int getHeight();
@@ -79,9 +82,22 @@ void LTexture::destroy() {
 	mHeight = 0;
 }
 
-void LTexture::render(float x, float y) {
+void LTexture::render(float x, float y, SDL_FRect* clip, float width, float height) {
 	SDL_FRect dstRect{ x, y, static_cast<float>(mWidth), static_cast<float>(mHeight) };
-	SDL_RenderTexture(gRenderer, mTexture, nullptr, &dstRect);
+
+	if (clip != nullptr) {
+		dstRect.w = clip->w;
+		dstRect.h = clip->h;
+	}
+
+	if (width > 0) {
+		dstRect.w = width;
+	}
+	if (height > 0) {
+		dstRect.h = height;
+	}
+
+	SDL_RenderTexture(gRenderer, mTexture, clip, &dstRect);
 }
 
 int LTexture::getWidth() {
@@ -96,7 +112,7 @@ bool LTexture::isLoaded() {
 	return mTexture != nullptr;
 }
 
-LTexture gFooTexture, gBgTexture;
+LTexture gSpriteSheetTexture;
 
 bool init();
 bool loadMedia();
@@ -123,11 +139,7 @@ bool init() {
 bool loadMedia() {
 	bool success{ true };
 
-	if (gFooTexture.loadFromFile("04-color-keying/foo.png") == false) {
-		SDL_Log("Unable to load image!\n");
-		success = false;
-	}
-	if (gBgTexture.loadFromFile("04-color-keying/background.png") == false) {
+	if (gSpriteSheetTexture.loadFromFile("05-sprite-clipping-and-stretching/dots.png") == false) {
 		SDL_Log("Unable to load image!\n");
 		success = false;
 	}
@@ -173,10 +185,44 @@ int main(int argc, char* args[]) {
 					SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 					SDL_RenderClear(gRenderer);
 
-					gBgTexture.render(0.f, 0.f);
-					gFooTexture.render(240.f, 190.f);
+					constexpr float kSpriteSize = 100.f;
+					SDL_FRect spriteClip{ 0.f, 0.f, kSpriteSize, kSpriteSize };
+					SDL_FRect spriteSize{ 0.f, 0.f, kSpriteSize, kSpriteSize };
+
+					spriteClip.x = 0.f;
+					spriteClip.y = 0.f;
+
+					spriteSize.w = kSpriteSize;
+					spriteSize.h = kSpriteSize;
+
+					gSpriteSheetTexture.render(0.f, 0.f, &spriteClip, spriteSize.w, spriteSize.h);
+
+					spriteClip.x = kSpriteSize;
+					spriteClip.y = 0.f;
+					
+					spriteSize.w = kSpriteSize * 0.5f;
+					spriteSize.h = kSpriteSize * 0.5f;
+
+					gSpriteSheetTexture.render(kScreenWidth - spriteSize.w, 0.f, &spriteClip, spriteSize.w, spriteSize.h);
+
+					spriteClip.x = 0.f;
+					spriteClip.y = kSpriteSize;
+
+					spriteSize.w = kSpriteSize * 2.f;
+					spriteSize.h = kSpriteSize * 2.f;
+
+					gSpriteSheetTexture.render(0.f, kScreenHeight - spriteSize.h, &spriteClip, spriteSize.w, spriteSize.h);
+
+					spriteClip.x = kSpriteSize;
+					spriteClip.y = kSpriteSize;
+
+					spriteSize.w = kSpriteSize * 2.f;
+					spriteSize.h = kSpriteSize * 2.f;
+
+					gSpriteSheetTexture.render(kScreenWidth - spriteSize.w, kScreenHeight - spriteSize.h, &spriteClip, spriteSize.w, spriteSize.h);
 
 					SDL_RenderPresent(gRenderer);
+
 				}
 			}
 		}
