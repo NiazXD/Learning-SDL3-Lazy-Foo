@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Learning SDL3\\x64\\Debug\\main.obj",
+            "outputs": [
+                "Learning SDL3\\x64\\Debug\\main.cpp.obj.dt.module.json",
+                "Learning SDL3\\x64\\Debug\\main.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}
