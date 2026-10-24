@@ -16,7 +16,8 @@ public:
 
 	void destroy();
 
-	void render(float x, float y, SDL_FRect* clip = nullptr, float width = kOriginalSize, float height = kOriginalSize);
+	void render(float x, float y, SDL_FRect* clip = nullptr, float width = kOriginalSize, float height = kOriginalSize,
+		double degrees = 0.0, SDL_FPoint* center = nullptr, SDL_FlipMode flipMode = SDL_FLIP_NONE);
 
 	int getWidth();
 	int getHeight();
@@ -54,10 +55,6 @@ bool LTexture::loadFromFile(std::string path) {
 		SDL_Log("Unable to load Image! SDL Error: %s\n", SDL_GetError());
 	}
 	else {
-		if (SDL_SetSurfaceColorKey(loadedSurface, true, SDL_MapSurfaceRGB(loadedSurface, 0x00, 0xFF, 0xFF)) == false) {
-			SDL_Log("Unable to color key! SDL error: %s\n", SDL_GetError());
-		}
-		else {
 			if (mTexture = SDL_CreateTextureFromSurface(gRenderer, loadedSurface); mTexture == nullptr) {
 				SDL_Log("Unable to create texture from loaded pixels! SDL Error: %s\n", SDL_GetError());
 			}
@@ -65,9 +62,6 @@ bool LTexture::loadFromFile(std::string path) {
 				mWidth = loadedSurface->w;
 				mHeight = loadedSurface->h;
 			}
-
-		}
-
 
 		SDL_DestroySurface(loadedSurface);
 	}
@@ -82,7 +76,7 @@ void LTexture::destroy() {
 	mHeight = 0;
 }
 
-void LTexture::render(float x, float y, SDL_FRect* clip, float width, float height) {
+void LTexture::render(float x, float y, SDL_FRect* clip, float width, float height, double degrees, SDL_FPoint* center, SDL_FlipMode flipMode) {
 	SDL_FRect dstRect{ x, y, static_cast<float>(mWidth), static_cast<float>(mHeight) };
 
 	if (clip != nullptr) {
@@ -97,7 +91,7 @@ void LTexture::render(float x, float y, SDL_FRect* clip, float width, float heig
 		dstRect.h = height;
 	}
 
-	SDL_RenderTexture(gRenderer, mTexture, clip, &dstRect);
+	SDL_RenderTextureRotated(gRenderer, mTexture, clip, &dstRect, degrees, center, flipMode);
 }
 
 int LTexture::getWidth() {
@@ -112,7 +106,7 @@ bool LTexture::isLoaded() {
 	return mTexture != nullptr;
 }
 
-LTexture gSpriteSheetTexture;
+LTexture gArrowTexture;
 
 bool init();
 bool loadMedia();
@@ -139,7 +133,7 @@ bool init() {
 bool loadMedia() {
 	bool success{ true };
 
-	if (gSpriteSheetTexture.loadFromFile("05-sprite-clipping-and-stretching/dots.png") == false) {
+	if (gArrowTexture.loadFromFile("06-rotation-and-flipping/arrow.png") == false) {
 		SDL_Log("Unable to load image!\n");
 		success = false;
 	}
@@ -173,53 +167,50 @@ int main(int argc, char* args[]) {
 		else {
 			bool quit{ false };
 			SDL_Event e;
-			SDL_zero(e);;
+			SDL_zero(e);
+
+			double degrees = 0.0;
+
+			SDL_FlipMode flipMode = SDL_FLIP_NONE;
 
 			while (quit == false) {
 				while (SDL_PollEvent(&e) == true) {
 					if (e.type == SDL_EVENT_QUIT) {
 						quit = true;
 					}
+					else if (e.type == SDL_EVENT_KEY_DOWN) {
+
+						switch (e.key.key) 
+						{
+						    case SDLK_LEFT:
+								degrees -= 36;
+								break;
+							case SDLK_RIGHT:
+								degrees += 36;
+								break;
+
+							case SDLK_1:
+								flipMode = SDL_FLIP_HORIZONTAL;
+								break;
+							case SDLK_2:
+								flipMode = SDL_FLIP_NONE;
+								break;
+							case SDLK_3:
+								flipMode = SDL_FLIP_VERTICAL;
+								break;
+
+						}
+
+					}
 
 
 					SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 					SDL_RenderClear(gRenderer);
 
-					constexpr float kSpriteSize = 100.f;
-					SDL_FRect spriteClip{ 0.f, 0.f, kSpriteSize, kSpriteSize };
-					SDL_FRect spriteSize{ 0.f, 0.f, kSpriteSize, kSpriteSize };
+					SDL_FPoint center{ gArrowTexture.getWidth() / 2.f, gArrowTexture.getHeight() / 2.f };
 
-					spriteClip.x = 0.f;
-					spriteClip.y = 0.f;
-
-					spriteSize.w = kSpriteSize;
-					spriteSize.h = kSpriteSize;
-
-					gSpriteSheetTexture.render(0.f, 0.f, &spriteClip, spriteSize.w, spriteSize.h);
-
-					spriteClip.x = kSpriteSize;
-					spriteClip.y = 0.f;
-					
-					spriteSize.w = kSpriteSize * 0.5f;
-					spriteSize.h = kSpriteSize * 0.5f;
-
-					gSpriteSheetTexture.render(kScreenWidth - spriteSize.w, 0.f, &spriteClip, spriteSize.w, spriteSize.h);
-
-					spriteClip.x = 0.f;
-					spriteClip.y = kSpriteSize;
-
-					spriteSize.w = kSpriteSize * 2.f;
-					spriteSize.h = kSpriteSize * 2.f;
-
-					gSpriteSheetTexture.render(0.f, kScreenHeight - spriteSize.h, &spriteClip, spriteSize.w, spriteSize.h);
-
-					spriteClip.x = kSpriteSize;
-					spriteClip.y = kSpriteSize;
-
-					spriteSize.w = kSpriteSize * 2.f;
-					spriteSize.h = kSpriteSize * 2.f;
-
-					gSpriteSheetTexture.render(kScreenWidth - spriteSize.w, kScreenHeight - spriteSize.h, &spriteClip, spriteSize.w, spriteSize.h);
+					gArrowTexture.render((kScreenWidth - gArrowTexture.getWidth()) / 2.f, (kScreenHeight - gArrowTexture.getHeight()) / 2.f,
+						nullptr, LTexture::kOriginalSize, LTexture::kOriginalSize, degrees, &center, flipMode);
 
 					SDL_RenderPresent(gRenderer);
 
