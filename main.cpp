@@ -16,6 +16,12 @@ public:
 
 	void destroy();
 
+	void setColor(Uint8 r, Uint8 g, Uint8 b);
+
+	void setAlpha(Uint8 alpha);
+
+	void setBlending(SDL_BlendMode blendMode);
+
 	void render(float x, float y, SDL_FRect* clip = nullptr, float width = kOriginalSize, float height = kOriginalSize,
 		double degrees = 0.0, SDL_FPoint* center = nullptr, SDL_FlipMode flipMode = SDL_FLIP_NONE);
 
@@ -76,6 +82,18 @@ void LTexture::destroy() {
 	mHeight = 0;
 }
 
+void LTexture::setColor(Uint8 r, Uint8 g, Uint8 b) {
+	SDL_SetTextureColorMod(mTexture, r, g, b);
+}
+
+void LTexture::setAlpha(Uint8 alpha) {
+	SDL_SetTextureAlphaMod(mTexture, alpha);
+}
+
+void LTexture::setBlending(SDL_BlendMode blendMode) {
+	SDL_SetTextureBlendMode(mTexture, blendMode);
+}
+
 void LTexture::render(float x, float y, SDL_FRect* clip, float width, float height, double degrees, SDL_FPoint* center, SDL_FlipMode flipMode) {
 	SDL_FRect dstRect{ x, y, static_cast<float>(mWidth), static_cast<float>(mHeight) };
 
@@ -106,7 +124,24 @@ bool LTexture::isLoaded() {
 	return mTexture != nullptr;
 }
 
-LTexture gArrowTexture;
+LTexture gColorsTexture;
+
+constexpr int kColorMagnitudeCount = 3;
+constexpr Uint8 kColorMagnitudes[kColorMagnitudeCount] = { 0x00, 0x7f, 0xFF }; //0, half or full
+enum class eColorChannel {
+	TextureRed = 0,
+	TextureGreen = 1,
+	TextureBlue = 2,
+	TextureAlpha = 3,
+
+	BackgroundRed = 4,
+	BackgroundGreen = 5,
+	BackgroundBlue = 6,
+
+	Total = 7,
+	Unknown = 8
+};
+
 
 bool init();
 bool loadMedia();
@@ -133,7 +168,7 @@ bool init() {
 bool loadMedia() {
 	bool success{ true };
 
-	if (gArrowTexture.loadFromFile("06-rotation-and-flipping/arrow.png") == false) {
+	if (gColorsTexture.loadFromFile("07-color-modulation-and-alpha-blending/colors.png") == false) {
 		SDL_Log("Unable to load image!\n");
 		success = false;
 	}
@@ -169,6 +204,18 @@ int main(int argc, char* args[]) {
 			SDL_Event e;
 			SDL_zero(e);
 
+			Uint8 colorChannelsIndices[static_cast<int>(eColorChannel::Total)];
+			colorChannelsIndices[static_cast<int>(eColorChannel::TextureRed)] = 2;
+			colorChannelsIndices[static_cast<int>(eColorChannel::TextureGreen)] = 2;
+			colorChannelsIndices[static_cast<int>(eColorChannel::TextureBlue)] = 2;
+			colorChannelsIndices[static_cast<int>(eColorChannel::TextureAlpha)] = 2;
+
+			colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundRed)] = 2;
+			colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundGreen)] = 2;
+			colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundBlue)] = 2;
+
+			gColorsTexture.setBlending(SDL_BLENDMODE_BLEND);
+
 			double degrees = 0.0;
 
 			SDL_FlipMode flipMode = SDL_FLIP_NONE;
@@ -179,38 +226,69 @@ int main(int argc, char* args[]) {
 						quit = true;
 					}
 					else if (e.type == SDL_EVENT_KEY_DOWN) {
-
+						eColorChannel channelToUpdate = eColorChannel::Unknown;
 						switch (e.key.key) 
 						{
-						    case SDLK_LEFT:
-								degrees -= 36;
-								break;
-							case SDLK_RIGHT:
-								degrees += 36;
-								break;
+						case SDLK_A:
+							channelToUpdate = eColorChannel::TextureRed;
+							break;
+						case SDLK_S:
+							channelToUpdate = eColorChannel::TextureGreen;
+							break;
+						case SDLK_D:
+							channelToUpdate = eColorChannel::TextureBlue;
+							break;
+						case SDLK_F:
+							channelToUpdate = eColorChannel::TextureAlpha;
+							break;
 
-							case SDLK_1:
-								flipMode = SDL_FLIP_HORIZONTAL;
-								break;
-							case SDLK_2:
-								flipMode = SDL_FLIP_NONE;
-								break;
-							case SDLK_3:
-								flipMode = SDL_FLIP_VERTICAL;
-								break;
+						case SDLK_Q:
+							channelToUpdate = eColorChannel::BackgroundRed;
+							break;
+						case SDLK_W:
+							channelToUpdate = eColorChannel::BackgroundGreen;
+							break;
+						case SDLK_E:
+							channelToUpdate = eColorChannel::BackgroundBlue;
+							break;
+						  
+						}
+
+						if (channelToUpdate != eColorChannel::Unknown) {
+							colorChannelsIndices[static_cast<int>(channelToUpdate)]++;
+							if (colorChannelsIndices[static_cast<int>(channelToUpdate)] >= kColorMagnitudeCount) {
+								colorChannelsIndices[static_cast<int>(channelToUpdate)] = 0;
+							}
+
+							SDL_Log("Texture - R:%d G:%d B:%d A:%d | Background - R:%d G:%d B:%d",
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureRed)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureGreen)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureBlue)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureAlpha)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundRed)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundGreen)]],
+								kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundBlue)]]
+							);
 
 						}
 
 					}
 
-
-					SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
+					SDL_SetRenderDrawColor(gRenderer,
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundRed)]],
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundGreen)]],
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::BackgroundBlue)]],
+						0xFF);
 					SDL_RenderClear(gRenderer);
 
-					SDL_FPoint center{ gArrowTexture.getWidth() / 2.f, gArrowTexture.getHeight() / 2.f };
+					gColorsTexture.setColor(
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureRed)]],
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureGreen)]],
+						kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureBlue)]]
+					);
+					gColorsTexture.setAlpha(kColorMagnitudes[colorChannelsIndices[static_cast<int>(eColorChannel::TextureAlpha)]]);
+					gColorsTexture.render((kScreenWidth - gColorsTexture.getWidth()) / 2.f, (kScreenHeight - gColorsTexture.getHeight()) / 2.f);
 
-					gArrowTexture.render((kScreenWidth - gArrowTexture.getWidth()) / 2.f, (kScreenHeight - gArrowTexture.getHeight()) / 2.f,
-						nullptr, LTexture::kOriginalSize, LTexture::kOriginalSize, degrees, &center, flipMode);
 
 					SDL_RenderPresent(gRenderer);
 
