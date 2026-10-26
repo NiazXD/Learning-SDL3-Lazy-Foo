@@ -98,6 +98,7 @@ private:
 
 constexpr int kScreenWidth{ 640 };
 constexpr int kScreenHeight{ 480 };
+constexpr int kScreenFps{ 60 };
 
 SDL_Window* gWindow{ nullptr };
 SDL_Renderer* gRenderer{ nullptr };
@@ -398,11 +399,17 @@ bool init() {
 		success = false;
 	}
 	else {
-		if (SDL_CreateWindowAndRenderer("SDL3 Tutorial: True Type Font", kScreenWidth, kScreenHeight, 0, &gWindow, &gRenderer) == false) {
+		if (SDL_CreateWindowAndRenderer("SDL3 Tutorial: Frame Rate and VSync", kScreenWidth, kScreenHeight, 0, &gWindow, &gRenderer) == false) {
 			SDL_Log("Window could not be created!SDL Error: %s\n", SDL_GetError());
 			success = false;
 		}
 		else {
+			if (SDL_SetRenderVSync(gRenderer, 1) == false) {
+				SDL_Log("Could not enable VSync! SDL error: %s\n", SDL_GetError());
+				success = false;
+			}
+
+
 			if (TTF_Init() == false) {
 				SDL_Log("SDL_ttf could not initialize! SDL_ttf error: %s\n", SDL_GetError());
 				success = false;
@@ -425,7 +432,7 @@ bool loadMedia() {
 	else
 	{
 		SDL_Color textColor{ 0x00, 0x00, 0x00, 0xFF };
-		if (!gTimeTextTexture.loadFromRenderedText("Press enter to start the timer", textColor))
+		if (!gTimeTextTexture.loadFromRenderedText("Enter to start/stop or space to pause/unpause", textColor))
 		{
 			SDL_Log("Could not load text texture %s! SDL_ttf Error: %s\n", fontPath.c_str(), SDL_GetError());
 			success = false;
@@ -480,10 +487,16 @@ int main(int argc, char* args[]) {
 			SDL_Event e;
 			SDL_zero(e);
 
-			LTimer timer;
+			bool vsyncEnabled{ true };
+			bool fpsCapEnabled{ false };
+			LTimer capTimer;
+
+			Uint64 renderingNS{ 0 };
+
 			std::stringstream timeText;
 
 			while (quit == false) {
+				capTimer.start();
 				while (SDL_PollEvent(&e) == true) {
 					if (e.type == SDL_EVENT_QUIT) {
 						quit = true;
@@ -491,31 +504,26 @@ int main(int argc, char* args[]) {
 					else if (e.type == SDL_EVENT_KEY_DOWN)
 					{
 						if (e.key.key == SDLK_RETURN) {
-							if (timer.isStarted()) {
-								timer.stop();
-							}
-							else {
-								timer.start();
-							}
+							vsyncEnabled = !vsyncEnabled;
+							SDL_SetRenderVSync(gRenderer, (vsyncEnabled) ? 1 : SDL_RENDERER_VSYNC_DISABLED);
 						}
 						else if (e.key.key == SDLK_SPACE) {
-							if (timer.isPaused()) {
-								timer.unpause();
-							}
-							else {
-								timer.pause();
-							}
+							fpsCapEnabled = !fpsCapEnabled;
+							
 						}
-
 
 					}
 				}
 
+				if (renderingNS != 0) {
+					double framesPerSecond{ 1000000000.0 / static_cast<double>(renderingNS) };
 
-				timeText.str("");
-				timeText<< "Milliseconds since start time " << (timer.getTicksNS() / 1000000);
-				SDL_Color textColor{ 0x00, 0x00, 0x00, 0xFF };
-				gTimeTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor);
+					timeText.str("");
+					timeText << "Frames per second " << (vsyncEnabled ? "(VSync) " : "") << (fpsCapEnabled ? "(Cap) " : "") << framesPerSecond;
+					SDL_Color textColor{ 0x00, 0x00, 0x00, 0xFF };
+
+					gTimeTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor);
+				}
 
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
@@ -523,6 +531,19 @@ int main(int argc, char* args[]) {
 				gTimeTextTexture.render((kScreenWidth - gTimeTextTexture.getWidth()) / 2.f, (kScreenHeight - gTimeTextTexture.getHeight()) / 2.f);
 
 				SDL_RenderPresent(gRenderer);
+
+				renderingNS = capTimer.getTicksNS();
+
+				constexpr Uint64 nsPerFrame = 1000000000 / kScreenFps;
+				if (fpsCapEnabled && renderingNS < nsPerFrame)
+				{
+					//Sleep remaining frame time
+					Uint64 sleepTime = nsPerFrame - renderingNS;
+					SDL_DelayNS(nsPerFrame - renderingNS);
+
+					//Get frame time including sleep time
+					renderingNS = capTimer.getTicksNS();
+				}
 
 			}
 		}
