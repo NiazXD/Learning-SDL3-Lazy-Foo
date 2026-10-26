@@ -1,0 +1,12 @@
+# Visual Studio temporary files
+.vs/
+*.suo
+*.user
+*.VC.db
+*.VC.db-shm
+*.VC.db-wal
+*.VC.opendb
+
+# Build output
+[Bb]in/
+[Oo]bj/

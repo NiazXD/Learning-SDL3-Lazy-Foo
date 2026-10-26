@@ -116,8 +116,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\SDL\SDL3-devel-3.4.18-VC\SDL3-3.4.18\lib\x64;C:\SDL\SDL3_image-3.4.8\lib\x64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL3.lib;SDL3_test.lib;SDL3_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\SDL\SDL3-devel-3.4.18-VC\SDL3-3.4.18\lib\x64;C:\SDL\SDL3_ttf-devel-3.2.2-VC\SDL3_ttf-3.2.2\lib\x64;C:\SDL\SDL3_image-3.4.8\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL3.lib;SDL3_test.lib;SDL3_image.lib;SDL3_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -145,7 +145,10 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main.cpp">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\SDL\SDL3-devel-3.4.18-VC\SDL3-3.4.18\include;C:\SDL\SDL3_image-3.4.8\include;C:\SDL\SDL3_ttf-devel-3.2.2-VC\SDL3_ttf-3.2.2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\SDL\SDL3-devel-3.4.18-VC\SDL3-3.4.18\include;C:\SDL\SDL3_image-3.4.8\include;C:\SDL\SDL3_ttf-devel-3.2.2-VC\SDL3_ttf-3.2.2\include</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
