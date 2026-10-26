@@ -94,6 +94,26 @@ private:
 
 };
 
+class Dot {
+public:
+	static constexpr int kDotWidth = 20;
+	static constexpr int kDotHeight = 20;
+
+	static constexpr int kDotVel = 10;
+
+	Dot();
+
+	void handleEvent(SDL_Event& e);
+
+	void move();
+
+	void render();
+
+private:
+	int mPosX, mPosY;
+	int mVelX, mVelY;
+};
+
 
 
 constexpr int kScreenWidth{ 640 };
@@ -103,7 +123,7 @@ constexpr int kScreenFps{ 60 };
 SDL_Window* gWindow{ nullptr };
 SDL_Renderer* gRenderer{ nullptr };
 TTF_Font* gFont{ nullptr };
-LTexture gColorsTexture, gTextTexture, gButtonSpriteTexture, gTimeTextTexture;
+LTexture gColorsTexture, gTextTexture, gButtonSpriteTexture, gTimeTextTexture, gDotTexture;
 
 LTexture::LTexture() :
 	mTexture{ nullptr },
@@ -365,6 +385,44 @@ bool LTimer::isPaused() {
 	return mPaused;
 }
 
+Dot::Dot() :
+	mPosX{ 0 },
+	mPosY{ 0 },
+	mVelX{ 0 },
+	mVelY{ 0 }
+{
+
+}
+
+void Dot::handleEvent(SDL_Event& e) {
+	if (e.type == SDL_EVENT_KEY_DOWN && e.key.repeat == 0) {
+		switch (e.key.key) {
+		case SDLK_UP: mVelY -= kDotVel; break;
+		case SDLK_DOWN: mVelY += kDotVel; break;
+		case SDLK_LEFT: mVelX -= kDotVel; break;
+		case SDLK_RIGHT: mVelX += kDotVel; break;
+		}
+	}
+}
+
+void Dot::move() {
+	mPosX += mVelX;
+
+	if ((mPosX < 0) || (mPosX + kDotWidth > kScreenWidth)) {
+		mPosX -= mVelX;
+	}
+
+	mPosY += mVelY;
+
+	if ((mPosY < 0) || (mPosY + kDotHeight > kScreenHeight)) {
+		mPosY -= mVelY;
+	}
+}
+
+void Dot::render() {
+	gDotTexture.render(static_cast<float>(mPosX), static_cast<float>(mPosY));
+}
+
 
 
 
@@ -439,9 +497,7 @@ bool loadMedia() {
 		}
 	}
 
-	
-
-	
+	gDotTexture.loadFromFile("13-motion/dot.png");
 
 	return success;
 
@@ -493,56 +549,36 @@ int main(int argc, char* args[]) {
 
 			Uint64 renderingNS{ 0 };
 
-			std::stringstream timeText;
+			Dot dot;
 
 			while (quit == false) {
+
 				capTimer.start();
+
 				while (SDL_PollEvent(&e) == true) {
 					if (e.type == SDL_EVENT_QUIT) {
 						quit = true;
 					}
-					else if (e.type == SDL_EVENT_KEY_DOWN)
-					{
-						if (e.key.key == SDLK_RETURN) {
-							vsyncEnabled = !vsyncEnabled;
-							SDL_SetRenderVSync(gRenderer, (vsyncEnabled) ? 1 : SDL_RENDERER_VSYNC_DISABLED);
-						}
-						else if (e.key.key == SDLK_SPACE) {
-							fpsCapEnabled = !fpsCapEnabled;
-							
-						}
 
-					}
+					dot.handleEvent(e);
 				}
-
-				if (renderingNS != 0) {
-					double framesPerSecond{ 1000000000.0 / static_cast<double>(renderingNS) };
-
-					timeText.str("");
-					timeText << "Frames per second " << (vsyncEnabled ? "(VSync) " : "") << (fpsCapEnabled ? "(Cap) " : "") << framesPerSecond;
-					SDL_Color textColor{ 0x00, 0x00, 0x00, 0xFF };
-
-					gTimeTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor);
-				}
+				
+				dot.move();
 
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
 
-				gTimeTextTexture.render((kScreenWidth - gTimeTextTexture.getWidth()) / 2.f, (kScreenHeight - gTimeTextTexture.getHeight()) / 2.f);
+				dot.render();
 
 				SDL_RenderPresent(gRenderer);
 
 				renderingNS = capTimer.getTicksNS();
 
 				constexpr Uint64 nsPerFrame = 1000000000 / kScreenFps;
-				if (fpsCapEnabled && renderingNS < nsPerFrame)
+				Uint64 frameNs{ capTimer.getTicksNS() };
+				if (frameNs < nsPerFrame)
 				{
-					//Sleep remaining frame time
-					Uint64 sleepTime = nsPerFrame - renderingNS;
-					SDL_DelayNS(nsPerFrame - renderingNS);
-
-					//Get frame time including sleep time
-					renderingNS = capTimer.getTicksNS();
+					SDL_DelayNS(nsPerFrame - frameNs);
 				}
 
 			}
